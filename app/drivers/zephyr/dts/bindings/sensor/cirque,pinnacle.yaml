@@ -21,3 +21,7 @@ properties:
     type: boolean
   invert-y:
     type: boolean
+  sleep:
+    type: boolean
+  no-taps:
+    type: boolean

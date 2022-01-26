@@ -9,38 +9,6 @@
 
 LOG_MODULE_REGISTER(pinnacle, CONFIG_SENSOR_LOG_LEVEL);
 
-/* static int pinnacle_read(const struct device *dev, const uint8_t addr, uint8_t *ret) { */
-/*     uint8_t tx_buffer[4]; */
-/*     tx_buffer[0] = PINNACLE_READ | addr; */
-/*     memset(&tx_buffer[1], PINNACLE_DUMMY, 3); */
-
-/*     const struct spi_buf tx_buf = { */
-/*         .buf = tx_buffer, */
-/*         .len = 4, */
-/*     }; */
-/*     const struct spi_buf_set tx = { */
-/*         .buffers = &tx_buf, */
-/*         .count = 1, */
-/*     }; */
-/* 	struct spi_buf rx_buf[2] = { */
-/* 		{ */
-/* 			.buf = tx_buffer, */
-/* 			.len = 3, */
-/* 		}, */
-/* 		{ */
-/* 			.buf = ret, */
-/* 			.len = 1, */
-/* 		}, */
-/* 	}; */
-/* 	const struct spi_buf_set rx = { */
-/* 		.buffers = rx_buf, */
-/* 		.count = 2, */
-/* 	}; */
-/*     const struct pinnacle_data *data = dev->data; */
-/*     const struct pinnacle_config *config = dev->config; */
-/*     return spi_transceive(data->spi, &config->spi_config, &tx, &rx); */
-/* } */
-
 static int pinnacle_seq_read(const struct device *dev, const uint8_t start, uint8_t *buf, const uint8_t len) {
     uint8_t tx_buffer[len + 3], rx_dummy[3];
     tx_buffer[0] = PINNACLE_READ | start;
@@ -96,6 +64,7 @@ static int pinnacle_channel_get(const struct device *dev, enum sensor_channel ch
     case SENSOR_CHAN_POS_DX: val->val1 = data->dx; break;
     case SENSOR_CHAN_POS_DY: val->val1 = data->dy; break;
     case SENSOR_CHAN_POS_DZ: val->val1 = data->wheel; break;
+    case SENSOR_CHAN_PRESS: val->val1 = data->btn; break;
     default: return -ENOTSUP;
     }
     return 0;
@@ -109,7 +78,7 @@ static int pinnacle_sample_fetch(const struct device *dev, enum sensor_channel c
         return res;
     }
     struct pinnacle_data *data = dev->data;
-    data->btn = packet[0];
+    data->btn = packet[0] & PINNACLE_PACKET0_BTN_PRIM;
     data->dx = ((packet[0] & PINNACLE_PACKET0_X_SIGN) ? 0xFF00 : 0) | packet[1];
     data->dy = ((packet[0] & PINNACLE_PACKET0_Y_SIGN) ? 0xFF00 : 0) | packet[2];
     data->wheel = packet[3];
@@ -119,7 +88,6 @@ static int pinnacle_sample_fetch(const struct device *dev, enum sensor_channel c
 #ifdef CONFIG_PINNACLE_TRIGGER
 static void set_int(const struct device *dev, const bool en) {
     const struct pinnacle_config *config = dev->config;
-    /* LOG_WRN("set int %s", en ? "true" : "false"); */
     int ret = gpio_pin_interrupt_configure(config->dr_port, config->dr_pin, en ? GPIO_INT_LEVEL_ACTIVE : GPIO_INT_DISABLE);
     if (ret < 0) {
         LOG_ERR("can't set interrupt");
@@ -127,7 +95,6 @@ static void set_int(const struct device *dev, const bool en) {
 }
     
 static int pinnacle_trigger_set(const struct device *dev, const struct sensor_trigger *trig, sensor_trigger_handler_t handler) {
-    const struct pinnacle_config *config = dev->config;
     struct pinnacle_data *data = dev->data;
 
     set_int(dev, false);
@@ -185,8 +152,13 @@ static int pinnacle_init(const struct device *dev) {
     data->spi = DEVICE_DT_GET(SPI_BUS);
 
     pinnacle_write(dev, PINNACLE_STATUS1, 0);   // Clear CC
-    /* pinnacle_write(dev, PINNACLE_Z_IDLE, 0);    // No Z-Idle packets */
-    /* pinnacle_write(dev, PINNACLE_SYS_CFG, PINNACLE_SYS_CFG_EN_SLEEP);    // Enable sleep */
+    pinnacle_write(dev, PINNACLE_Z_IDLE, 0);    // No Z-Idle packets
+    if (config->sleep_en) {
+        pinnacle_write(dev, PINNACLE_SYS_CFG, PINNACLE_SYS_CFG_EN_SLEEP);
+    }
+    if (config->no_taps) {
+        pinnacle_write(dev, PINNACLE_FEED_CFG2, PINNACLE_FEED_CFG2_DIS_TAP);
+    }
     uint8_t feed_cfg1 = PINNACLE_FEED_CFG1_EN_FEED;
     if (config->invert_x) {
         feed_cfg1 |= PINNACLE_FEED_CFG1_INV_X;
@@ -246,6 +218,8 @@ static const struct pinnacle_config pinnacle_config = {
     },
     .invert_x = DT_INST_PROP(0, invert_x),
     .invert_y = DT_INST_PROP(0, invert_y),
+    .sleep_en = DT_INST_PROP(0, sleep),
+    .no_taps = DT_INST_PROP(0, no_taps),
 #ifdef CONFIG_PINNACLE_TRIGGER
     .dr_port = DEVICE_DT_GET(DT_GPIO_CTLR(DT_DRV_INST(0), dr_gpios)),
     .dr_pin = DT_INST_GPIO_PIN(0, dr_gpios),

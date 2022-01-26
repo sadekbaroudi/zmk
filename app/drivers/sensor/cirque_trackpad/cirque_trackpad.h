@@ -72,7 +72,7 @@ struct pinnacle_data {
 struct pinnacle_config {
 	struct spi_cs_control spi_cs;
 	struct spi_config spi_config;
-    bool invert_x, invert_y;
+    bool invert_x, invert_y, sleep_en, no_taps;
 #ifdef CONFIG_PINNACLE_TRIGGER
     const struct device *dr_port;
     uint8_t dr_pin, dr_flags;
