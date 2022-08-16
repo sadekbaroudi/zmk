@@ -1,6 +1,7 @@
 #define DT_DRV_COMPAT cirque_pinnacle
 
 #include <drivers/spi.h>
+#include <drivers/i2c.h>
 #include <init.h>
 #include <drivers/sensor.h>
 #include <logging/log.h>
@@ -37,6 +38,7 @@ static int pinnacle_seq_read(const struct device *dev, const uint8_t start, uint
 		.buffers = rx_buf,
 		.count = 2,
 	};
+    
     const struct pinnacle_data *data = dev->data;
     const struct pinnacle_config *config = dev->config;
     return spi_transceive(data->spi, &config->spi_config, &tx, &rx);

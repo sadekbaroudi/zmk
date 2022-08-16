@@ -5,6 +5,7 @@ menuconfig PINNACLE
 	bool "PINNACLE Incremental Encoder Sensor"
 	depends on GPIO
 	depends on SPI
+	depends on I2C
 	help
 	  Enable driver for Cirque Pinnacle trackpads
 
@@ -15,6 +16,12 @@ choice
 	default PINNACLE_TRIGGER_NONE
 	help
 	  Specify the type of triggering to be used by the driver.
+
+choice
+	prompt "Communication mode"
+	default PINNACLE_COMM_MODE
+	help
+	  Specify the type of communication to be used (i2c or spi)
 
 config PINNACLE_TRIGGER_NONE
 	bool "No trigger"

@@ -1,12 +1,16 @@
 #pragma once
 
 #include <device.h>
+#include <drivers/i2c.h>
 
 #define PINNACLE_READ       0xA0
 #define PINNACLE_WRITE      0x80
 
 #define PINNACLE_AUTOINC    0xFC
 #define PINNACLE_DUMMY      0xFB
+
+// I2C address
+#define PINNACLE_ADDR 0x2A
 
 // Registers
 #define PINNACLE_FW_ID              0x00 // ASIC ID.
